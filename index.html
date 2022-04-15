@@ -67,6 +67,43 @@
     footer {
       text-align: center;
     }
+
+    div[value="1"] {
+      background-color: rgb(240, 240, 240);
+    }
+    div[value="2"] {
+      background-color: silver;
+    }
+    div[value="4"] {
+      background-color: beige;
+    }
+    div[value="8"] {
+      background-color: yellow;
+    }
+    div[value="16"] {
+      background-color: rgb(215, 185, 110);
+    }
+    div[value="32"] {
+      background-color: orange;
+    }
+    div[value="64"] {
+      background-color: rgb(255, 125, 33);
+    }
+    div[value="128"] {
+      background-color: rgb(26, 215, 221);
+    }
+    div[value="256"] {
+      background-color: rgb(0, 255, 166);
+    }
+    div[value="512"] {
+      background-color: rgb(17, 189, 40);
+    }
+    div[value="1024"] {
+      background-color: rgb(20, 129, 7);
+    }
+    div[value="2048"] {
+      background-color: rgb(252, 0, 0);
+    }
   </style>
 </head>
 <body>
@@ -120,19 +157,30 @@
         return 'point';
       }
 
-      static makeElement (idx) {
+      static makePoint () {
         const el = document.createElement('div');
-        el.classList.add(`${this.className}`, `${this.className}-${idx}`);
+        el.classList.add(`${this.className}`);
         return el;
+      }
+
+      constructor (val) {
+        this.element = this.constructor.makePoint();
+        this.render(val);
+      }
+
+      render (value) {
+        this.element.setAttribute('value', value);
+        this.element.innerText = value;
       }
     }
 
     class Board {
-      static get selector () {
-        return `#${this.className}`;
-      }
       static get className () {
         return 'board'
+      }
+
+      static get selector () {
+        return `#${this.className}`;
       }
 
       static resetData (size = 4) {
@@ -142,7 +190,7 @@
       constructor (initData) {
         this.element = document.querySelector(this.constructor.selector);
         this._data = initData;
-        this._pointEls = [];
+        this._points = [];
 
         this.init();
       }
@@ -190,9 +238,9 @@
 
       _makeGrid () {
         this._deleteGrid();
-        const pointEls = this._data.flat().map((_, idx) => Point.makeElement(idx))
-        this.element.append(...pointEls);
-        this.pointEls = pointEls;
+        const points = this._data.flat().map(val => new Point(val))
+        this.element.append(...points.map(p => p.element));
+        this._points = points;
       }
       
       _mergeRow (row) {
@@ -283,9 +331,9 @@
 
         for (let i = 0; i < this._data.length; i++) {
           for (let j = 0; j < this._data.length; j++) {
-            const idx = (this._data.length * i) + j;
-            const pointEl = this.pointEls[idx];
-            this.pointEls[idx].innerText = this._data[i][j];
+            const idx = (this._data.length * i) + j; // number 0-15
+            const point = this._points[idx];
+            point.render(this._data[i][j]);
           }
         }
       }
