@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2048 Clone</title>
+  <style>
+    .grid-3x3 {
+      display: grid;
+      grid-template-columns: 1fr 5fr 1fr;
+      grid-template-rows: 1fr 5fr 1fr;
+    }
+
+    .top-m,
+    .mid-l,
+    .mid-r,
+    .bot-m {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      grid-auto-rows: minmax(100px, auto);
+    }
+
+    .point {
+      display: grid;
+      align-items: center;
+      justify-items: center;
+      border: 1px solid #000;
+    }
+    
+    .swipe {
+      position: relative;
+      width: 80px;
+      height: 40px;
+    }
+
+    .swipe::after {
+      display: flex;
+      content: '^';
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      align-items: center;
+      justify-content: center;
+      transform-origin: center;
+    }
+
+    .swipe-l {
+      transform: rotate(-90deg);
+    }
+    .swipe-r {
+      transform: rotate(90deg);
+    }
+    .swipe-d {
+      transform: rotate(180deg);
+    }
+
+    header,
+    footer {
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <article>
+    <header>
+      This is a clone 2048 game
+    </header>
+    <section id="main" class="grid-3x3">
+      <div class="top-l"></div>
+      <div class="top-m">
+        <button type="button" class="swipe swipe-u" id="swipe-up" value="up"></button>
+      </div>
+      <div class="top-r"></div>
+      <div class="mid-l">
+        <!-- BOARD goes here -->
+        <button type="button" class="swipe swipe-l" id="swipe-left" value="left"></button>
+      </div>
+      <div class="mid-m">
+        <div id="board" class="board"></div>
+      </div>
+      <div class="mid-r">
+        <button type="button" class="swipe swipe-r" id="swipe-right" value="right"></button>
+      </div>
+      <div class="bot-l"></div>
+      <div class="bot-m">
+        <button type="button" class="swipe swipe-d" id="swipe-down" value="down"></button>
+      </div>
+      <div class="bot-r"></div>
+    </section>
+    <footer>
+      <!-- reset button -->
+      <button type="button" id="reset">Reset</button>
+    </footer>
+  </article>
+  
+  <script type="text/javascript">
+    // UTILS
+    const compose = (a, b) => x => a(b(x));
+    const reverse = array => [...array].reverse();
+    const flipMatrix = matrix => (
+      matrix[0].map((column, index) => (
+        matrix.map(row => row[index])
+      ))
+    );
+    const rotateMatrixClockwise = compose(flipMatrix, reverse);
+    const rotateMatrixCounterClockwise = compose(reverse, flipMatrix)
+    const rotateHalf = compose(rotateMatrixClockwise, rotateMatrixClockwise);
+
+    class Point {
+      static get className () {
+        return 'point';
+      }
+
+      static makeElement (idx) {
+        const el = document.createElement('div');
+        el.classList.add(`${this.className}`, `${this.className}-${idx}`);
+        return el;
+      }
+    }
+
+    class Board {
+      static get selector () {
+        return `#${this.className}`;
+      }
+      static get className () {
+        return 'board'
+      }
+
+      static resetData (size = 4) {
+        return Array.from({length: size}, () => Array.from({length: size}, () => Math.random() > 0.8 ? 1 : 0)) // initialize grid with 0's
+      }
+      
+      constructor (initData) {
+        this.element = document.querySelector(this.constructor.selector);
+        this._data = initData;
+        this._pointEls = [];
+
+        this.init();
+      }
+      
+      init () {
+        if (!this._data) this._data = this.constructor.resetData(); // only update data if none initialized
+        if (!this.element.children.length) this._makeGrid();
+        this.render();
+      }
+
+      reset () {
+        this._data = this.constructor.resetData();
+        this.render();
+      }
+
+      _introduce () {
+        // take the existing data and add a new 1 or 2 to an available slot
+        const newNum = Math.random() > 0.4 ? 1 : 2; // trend towards 1
+        const availableSpaces = this._assessAvailable();
+        const idx = Math.round(Math.random() * availableSpaces.length) % availableSpaces.length; // int based on # of available spaces
+        const [x,y] = availableSpaces[idx];
+        this._data[x][y] = newNum;
+      }
+
+      _assessAvailable () {
+        const availableSpaces = [];
+        
+        for (let i = 0; i < this._data.length; i++) {
+          for (let j = 0; j < this._data.length; j++) {
+            if (this._data[i][j] === 0) availableSpaces.push([i,j]);
+          }
+        }
+
+        return availableSpaces;
+      }
+
+      _rebuild () {
+        this._deleteGrid();
+        this.reset();
+      }
+
+      _deleteGrid () {
+        if (this.element.children.length) [].slice.call(this.element.children).forEach(el => el.remove());
+      }
+
+      _makeGrid () {
+        this._deleteGrid();
+        const pointEls = this._data.flat().map((_, idx) => Point.makeElement(idx))
+        this.element.append(...pointEls);
+        this.pointEls = pointEls;
+      }
+      
+      _mergeRow (row) {
+        const out = [];
+        let l = 0, r = 1;
+
+        while (l < row.length) {
+          // increment r and compare to l
+          //  if r == 0, increment
+          //  if l == 0, increment
+          //  if l !== r
+          //    increment l && continue
+          //  else l == r
+          //    push sum to out
+          //    increment l & r
+
+          while (row[r] === 0) r++;
+          if (row[l] === row[r]) {
+            out.push(row[l] + row[r]);
+            l = ++r;
+            r++;
+          } else {
+            if (row[l] > 0) {
+              out.push(row[l]);
+              l++;
+            }
+            while (row[l] === 0) l++; // we don't care about 0s
+            r++;
+          }
+          // if (row[l] === row[r]) {
+          //   out.push(row[l] + row[r]);
+          //   l = r;
+          //   r++;
+          // } else {
+          //   out.push(row[l]);
+          //   l++;
+          //   r++;
+          // }
+        }
+        // for (let i = 0; i < row.length; i++) {
+        //   if (!row[i]) continue; // if it's 0, skip
+        //   if (row[i] == row[i+1]) {
+        //     out.push(row[i] + row[i+1]);
+        //     i++;
+        //   }
+        //   else {
+        //     out.push(row[i]);
+        //   }
+        // }
+
+        while (out.length < row.length) out.push(0);
+        
+        return out;
+      }
+
+      _mergeRows (grid) {
+        return grid.map(this._mergeRow);
+      }
+
+      swipeLeft () {
+        const merged = this._mergeRows(this._data);
+        this._data = merged;
+        this.render();
+      }
+
+      swipeRight () {
+        const merged = this._mergeRows(rotateHalf(this._data));
+        this._data = rotateHalf(merged); // reset to original 
+        this.render();
+      }
+
+      swipeUp () {
+        const rotated = rotateMatrixCounterClockwise(this._data)
+        const merged = this._mergeRows(rotated);
+        this._data = rotateMatrixClockwise(merged); // reset to original
+        this.render();
+      }
+
+      swipeDown () {
+        const rotated = rotateMatrixClockwise(this._data);
+        const merged = this._mergeRows(rotated);
+        this._data = rotateMatrixCounterClockwise(merged);
+        this.render();
+      }
+
+      render () {
+        this._introduce(); // might want to move this out of the render() for separation of concerns
+
+        for (let i = 0; i < this._data.length; i++) {
+          for (let j = 0; j < this._data.length; j++) {
+            const idx = (this._data.length * i) + j;
+            const pointEl = this.pointEls[idx];
+            this.pointEls[idx].innerText = this._data[i][j];
+          }
+        }
+      }
+
+    }
+
+    class App {
+      constructor () {
+        this.board = new Board();
+        this.swipeUpEl = document.querySelector('#swipe-up');
+        this.swipeLeftEl = document.querySelector('#swipe-left');
+        this.swipeDownEl = document.querySelector('#swipe-down');
+        this.swipeRightEl = document.querySelector('#swipe-right');
+        this.resetEl = document.querySelector('#reset');
+
+        this._addListeners();
+      }
+
+      _addListeners () {
+        const handleSwipeUp = this.board.swipeUp.bind(this.board);
+        const handleSwipeLeft = this.board.swipeLeft.bind(this.board);
+        const handleSwipeDown = this.board.swipeDown.bind(this.board);
+        const handleSwipeRight = this.board.swipeRight.bind(this.board);
+
+        this.swipeUpEl.addEventListener('click', handleSwipeUp)
+        this.swipeLeftEl.addEventListener('click', handleSwipeLeft)
+        this.swipeDownEl.addEventListener('click', handleSwipeDown)
+        this.swipeRightEl.addEventListener('click', handleSwipeRight)
+
+        this.resetEl.addEventListener('click', (e) => {
+          e.preventDefault();
+          this.board.reset();
+        })
+      }
+    }
+
+    window.onload = () => {
+      const app = new App();
+    };
+  </script>
+</body>
+
+</html>
