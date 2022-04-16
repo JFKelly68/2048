@@ -167,7 +167,7 @@
         return {
           display: '',
           attribute: 'empty',
-          value: null
+          value: null // don't make this a number
         };
       }
 
@@ -269,7 +269,7 @@
         const out = [];
         let l = 0, r = 1; // 2 pointers
 
-        /* NOTE: single-pass consolidation
+        /* NOTE: O(n) I believe, single-pass consolidation
           increment r and compare to l
           we don't care about 0s, so while r == 0, increment
           if l === r
@@ -349,15 +349,6 @@
     }
 
     class App {
-      // TODO:
-      //  - break out into separate files and server
-      //  - add logic for win/lose state
-      //  - set top limit for merging of numbers
-      //  - deploy/host
-      //  - improve basic styling
-      //  - add animations
-      //    - separate display "board" from display "points" (points should overlay the board, not *be* the board)
-      //  - custom grid size?
       constructor () {
         this.board = new Board();
         this.swipeUpEl = document.querySelector('#swipe-up');
