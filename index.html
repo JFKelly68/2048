@@ -157,20 +157,28 @@
         return 'point';
       }
 
-      static makePoint () {
+      static makeElement () {
         const el = document.createElement('div');
         el.classList.add(`${this.className}`);
         return el;
       }
 
+      static get emptyValues () {
+        return {
+          display: '',
+          attribute: 'empty',
+          value: null
+        };
+      }
+
       constructor (val) {
-        this.element = this.constructor.makePoint();
+        this.element = this.constructor.makeElement();
         this.render(val);
       }
 
       render (value) {
-        this.element.setAttribute('value', value);
-        this.element.innerText = value;
+        this.element.setAttribute('value', value || this.constructor.emptyValues.attribute);
+        this.element.innerText = value || this.constructor.emptyValues.display;
       }
     }
 
@@ -184,7 +192,8 @@
       }
 
       static resetData (size = 4) {
-        return Array.from({length: size}, () => Array.from({length: size}, () => Math.random() > 0.8 ? 1 : 0)) // initialize grid with 0's
+        // NOTE: create square matrix
+        return Array.from({length: size}, () => Array.from({length: size}, () => Math.random() > 0.8 ? 1 : null)) // initialize grid with 0's
       }
       
       constructor (initData) {
@@ -208,10 +217,10 @@
 
       _introduce () {
         // take the existing data and add a new 1 or 2 to an available slot
-        const newNum = Math.random() > 0.4 ? 1 : 2; // trend towards 1
+        const newNum = Math.random() > 0.4 ? 1 : 2; // trend towards 1s
         const availableSpaces = this._assessAvailable();
-        const idx = Math.round(Math.random() * availableSpaces.length) % availableSpaces.length; // int based on # of available spaces
-        const [x,y] = availableSpaces[idx];
+        const idx = Math.round(Math.random() * availableSpaces.length) % availableSpaces.length; // random int based on # of available spaces
+        const [x,y] = availableSpaces[idx]; // get matrix coordinates of available space chosen at random
         this._data[x][y] = newNum;
       }
 
@@ -220,7 +229,7 @@
         
         for (let i = 0; i < this._data.length; i++) {
           for (let j = 0; j < this._data.length; j++) {
-            if (this._data[i][j] === 0) availableSpaces.push([i,j]);
+            if (this._data[i][j] === Point.emptyValues.value) availableSpaces.push([i,j]);
           }
         }
 
@@ -243,55 +252,54 @@
         this._points = points;
       }
       
+      
+      /* NOTE: previous, naive implementation (does not work for instance such as [1,0,1,0])
+        for (let i = 0; i < row.length; i++) {
+          if (!row[i]) continue; // if it's 0, skip
+          if (row[i] == row[i+1]) {
+            out.push(row[i] + row[i+1]);
+            i++;
+          }
+          else {
+            out.push(row[i]);
+          }
+        }
+      */
       _mergeRow (row) {
         const out = [];
-        let l = 0, r = 1;
+        let l = 0, r = 1; // 2 pointers
 
+        /* NOTE: single-pass consolidation
+          increment r and compare to l
+          we don't care about 0s, so while r == 0, increment
+          if l === r
+            push sum to output
+            move l to right of r
+            move r+1
+          else (l !== r)
+            if l !== 0 && !undefined (i.e. !out of bounds)
+              push l to output
+              increment l
+            (because we don't care about 0s) while l == 0, increment
+            increment r
+        */    
         while (l < row.length) {
-          // increment r and compare to l
-          //  if r == 0, increment
-          //  if l == 0, increment
-          //  if l !== r
-          //    increment l && continue
-          //  else l == r
-          //    push sum to out
-          //    increment l & r
-
-          while (row[r] === 0) r++;
+          while (row[r] === Point.emptyValues.value) r++;
           if (row[l] === row[r]) {
             out.push(row[l] + row[r]);
             l = ++r;
             r++;
           } else {
-            if (row[l] > 0) {
+            if (row[l] !== Point.emptyValues.value) {
               out.push(row[l]);
               l++;
             }
-            while (row[l] === 0) l++; // we don't care about 0s
+            while (row[l] === Point.emptyValues.value) l++; // we don't care about 0s
             r++;
           }
-          // if (row[l] === row[r]) {
-          //   out.push(row[l] + row[r]);
-          //   l = r;
-          //   r++;
-          // } else {
-          //   out.push(row[l]);
-          //   l++;
-          //   r++;
-          // }
         }
-        // for (let i = 0; i < row.length; i++) {
-        //   if (!row[i]) continue; // if it's 0, skip
-        //   if (row[i] == row[i+1]) {
-        //     out.push(row[i] + row[i+1]);
-        //     i++;
-        //   }
-        //   else {
-        //     out.push(row[i]);
-        //   }
-        // }
 
-        while (out.length < row.length) out.push(0);
+        while (out.length < row.length) out.push(Point.emptyValues.value);
         
         return out;
       }
@@ -327,7 +335,7 @@
       }
 
       render () {
-        this._introduce(); // might want to move this out of the render() for separation of concerns
+        this._introduce(); // TODO: might want to move this out of the render() for separation of concerns
 
         for (let i = 0; i < this._data.length; i++) {
           for (let j = 0; j < this._data.length; j++) {
@@ -341,6 +349,15 @@
     }
 
     class App {
+      // TODO:
+      //  - break out into separate files and server
+      //  - add logic for win/lose state
+      //  - set top limit for merging of numbers
+      //  - deploy/host
+      //  - improve basic styling
+      //  - add animations
+      //    - separate display "board" from display "points" (points should overlay the board, not *be* the board)
+      //  - custom grid size?
       constructor () {
         this.board = new Board();
         this.swipeUpEl = document.querySelector('#swipe-up');
