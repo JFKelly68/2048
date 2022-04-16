@@ -150,7 +150,7 @@
     );
     const rotateMatrixClockwise = compose(flipMatrix, reverse);
     const rotateMatrixCounterClockwise = compose(reverse, flipMatrix)
-    const rotateHalf = compose(rotateMatrixClockwise, rotateMatrixClockwise);
+    const rotateMatrixDouble = compose(rotateMatrixClockwise, rotateMatrixClockwise);
 
     class Point {
       static get className () {
@@ -193,7 +193,7 @@
 
       static resetData (size = 4) {
         // NOTE: create square matrix
-        return Array.from({length: size}, () => Array.from({length: size}, () => Math.random() > 0.8 ? 2 : null)) // initialize grid with 0's
+        return Array.from({length: size}, () => Array.from({length: size}, () => Math.random() > 0.8 ? 2 : null)) // initialize grid with 2's or null
       }
       
       constructor (initData) {
@@ -206,7 +206,7 @@
       
       // PRIVATE METHODS
       _init () {
-        if (!this._data) this._data = this.constructor.resetData(); // only update data if none initialized
+        if (!this._data) this._data = this.constructor.resetData(); // only update _data if none initialized
         if (!this.element.children.length) this._makeGrid();
         this.render();
       }
@@ -267,16 +267,16 @@
 
         /* NOTE: O(n) I believe, single-pass consolidation
           increment r and compare to l
-          we don't care about 0s, so while r == 0, increment
+          we don't care about nulls, so while r == null, increment
           if l === r
             push sum to output
             move l to right of r
             move r+1
           else (l !== r)
-            if l !== 0 && !undefined (i.e. !out of bounds)
+            if l !== null && !undefined (i.e. !out of bounds)
               push l to output
               increment l
-            (because we don't care about 0s) while l == 0, increment
+            (because we don't care about 0s) while l == null, increment
             increment r
         */    
         while (l < row.length) {
@@ -290,7 +290,7 @@
               out.push(row[l]); // we know there's no neighbor match, push val to output
               l++;
             }
-            while (row[l] === Point.emptyValues.value) l++; // we don't care about 0s
+            while (row[l] === Point.emptyValues.value) l++; // we don't care about nulls
             r++;
           }
         }
@@ -317,22 +317,22 @@
       }
 
       swipeRight () {
-        const merged = this._mergeRows(rotateHalf(this._data));
-        this._data = rotateHalf(merged); // reset to original 
+        const merged = this._mergeRows(rotateMatrixDouble(this._data));
+        this._data = rotateMatrixDouble(merged); // transform to original 
         this.render();
       }
 
       swipeUp () {
         const rotated = rotateMatrixCounterClockwise(this._data)
         const merged = this._mergeRows(rotated);
-        this._data = rotateMatrixClockwise(merged); // reset to original
+        this._data = rotateMatrixClockwise(merged); // transform to original
         this.render();
       }
 
       swipeDown () {
         const rotated = rotateMatrixClockwise(this._data);
         const merged = this._mergeRows(rotated);
-        this._data = rotateMatrixCounterClockwise(merged);
+        this._data = rotateMatrixCounterClockwise(merged); // transform to original
         this.render();
       }
 
