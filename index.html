@@ -23,7 +23,7 @@
 
     .board {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(4, minmax(100px, 1fr));
       grid-auto-rows: minmax(100px, auto);
     }
 
@@ -41,8 +41,8 @@
     }
 
     .swipe::after {
-      display: flex;
       content: '^';
+      display: flex;
       position: absolute;
       width: 100%;
       height: 100%;
@@ -193,7 +193,7 @@
 
       static resetData (size = 4) {
         // NOTE: create square matrix
-        return Array.from({length: size}, () => Array.from({length: size}, () => Math.random() > 0.8 ? 1 : null)) // initialize grid with 0's
+        return Array.from({length: size}, () => Array.from({length: size}, () => Math.random() > 0.8 ? 2 : null)) // initialize grid with 0's
       }
       
       constructor (initData) {
@@ -201,23 +201,19 @@
         this._data = initData;
         this._points = [];
 
-        this.init();
+        this._init();
       }
       
-      init () {
+      // PRIVATE METHODS
+      _init () {
         if (!this._data) this._data = this.constructor.resetData(); // only update data if none initialized
         if (!this.element.children.length) this._makeGrid();
         this.render();
       }
 
-      reset () {
-        this._data = this.constructor.resetData();
-        this.render();
-      }
-
       _introduce () {
-        // take the existing data and add a new 1 or 2 to an available slot
-        const newNum = Math.random() > 0.4 ? 1 : 2; // trend towards 1s
+        // take the existing data and add a new 2 or 4 to an available slot
+        const newNum = Math.random() > 0.4 ? 2 : 4; // trend towards 2s
         const availableSpaces = this._assessAvailable();
         const idx = Math.round(Math.random() * availableSpaces.length) % availableSpaces.length; // random int based on # of available spaces
         const [x,y] = availableSpaces[idx]; // get matrix coordinates of available space chosen at random
@@ -253,7 +249,7 @@
       }
       
       
-      /* NOTE: previous, naive implementation (does not work for instance such as [1,0,1,0])
+      /* NOTE: previous, naive implementation (does not work for instance such as [2,0,2,0])
         for (let i = 0; i < row.length; i++) {
           if (!row[i]) continue; // if it's 0, skip
           if (row[i] == row[i+1]) {
@@ -291,7 +287,7 @@
             r++;
           } else {
             if (row[l] !== Point.emptyValues.value) {
-              out.push(row[l]);
+              out.push(row[l]); // we know there's no neighbor match, push val to output
               l++;
             }
             while (row[l] === Point.emptyValues.value) l++; // we don't care about 0s
@@ -306,6 +302,12 @@
 
       _mergeRows (grid) {
         return grid.map(this._mergeRow);
+      }
+
+      // PUBLIC METHODS
+      reset () {
+        this._data = this.constructor.resetData();
+        this.render();
       }
 
       swipeLeft () {
