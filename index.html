@@ -301,18 +301,6 @@
         return grid.map(this._mergeRow);
       }
 
-      // PUBLIC METHODS
-      reset () {
-        this._data = this.constructor.resetData();
-        this.render();
-      }
-
-      _updateGameplay () {
-        // assess if previous swipe updated the board
-
-        this._introduce();
-      }
-
       _handleSwipe (evt) {
         evt.preventDefault();
         // determine direction
@@ -329,6 +317,12 @@
         }
 
         return false;
+      }
+
+      // PUBLIC METHODS
+      reset () {
+        this._data = this.constructor.resetData();
+        this.render();
       }
 
       nextStep (direction) {
@@ -366,35 +360,23 @@
         this._previousState = this._data;
         const merged = this._mergeRows(this._data);
         return merged;
-        // this._data = merged;
-        // this._updateGameplay();
-        // this.render();
       }
 
       calculateSwipeRight () {
         const merged = this._mergeRows(rotateMatrixDouble(this._data));
         return rotateMatrixDouble(merged);
-        // this._data = rotateMatrixDouble(merged); // transform to original 
-        // this._updateGameplay();
-        // this.render();
       }
 
       calculateSwipeUp () {
         const rotated = rotateMatrixCounterClockwise(this._data)
         const merged = this._mergeRows(rotated);
         return rotateMatrixClockwise(merged);
-        // this._data = rotateMatrixClockwise(merged); // transform to original
-        // this._updateGameplay();
-        // this.render();
       }
 
       calculateSwipeDown () {
         const rotated = rotateMatrixClockwise(this._data);
         const merged = this._mergeRows(rotated);
         return rotateMatrixCounterClockwise(merged);
-        // this._data = rotateMatrixCounterClockwise(merged); // transform to original
-        // this._updateGameplay();
-        // this.render();
       }
 
       render () {
@@ -423,9 +405,6 @@
 
       _addListeners () {
         const handleSwipe = this.board._handleSwipe.bind(this.board);
-        // const handleSwipeLeft = this.board.calculateSwipeLeft.bind(this.board);
-        // const handleSwipeDown = this.board.calculateSwipeDown.bind(this.board);
-        // const handleSwipeRight = this.board.calculateSwipeRight.bind(this.board);
 
         this.swipeUpEl.addEventListener('click', handleSwipe)
         this.swipeLeftEl.addEventListener('click', handleSwipe)
