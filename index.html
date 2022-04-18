@@ -275,7 +275,7 @@
               increment l
             (because we don't care about 0s) while l == null, increment
             increment r
-        */    
+        */  
         while (l < row.length) {
           while (row[r] === Point.emptyValues.value) r++;
           if (row[l] === row[r]) {
@@ -301,41 +301,85 @@
         return grid.map(this._mergeRow);
       }
 
+      _handleSwipe (evt) {
+        evt.preventDefault();
+        // determine direction
+        const dir = evt.currentTarget.value
+        // call nextStep
+        this.nextStep(dir);
+      }
+
+      _compareStates (prev, curr) {
+        for (let i = 0; i < Math.max(prev.length, curr.length); i++) {
+          for (let j = 0; j < Math.max(prev.length, curr.length); j++) {
+            if (prev[i][j] !== curr[i][j]) return true;
+          }
+        }
+
+        return false;
+      }
+
       // PUBLIC METHODS
       reset () {
         this._data = this.constructor.resetData();
         this.render();
       }
 
-      swipeLeft () {
+      nextStep (direction) {
+        // capture current data
+        const prevState = this._data;
+        // call swipe direction
+        let updatedState;
+        switch (direction) {
+          case 'up':
+            updatedState = this.calculateSwipeUp();
+            break;
+          case 'left':
+            updatedState = this.calculateSwipeLeft();
+            break;
+          case 'down':
+            updatedState = this.calculateSwipeDown();
+            break;
+          case 'right':
+            updatedState = this.calculateSwipeRight();
+            break;
+          default:
+            console.error('invalid action');
+        }
+
+        this._data = updatedState;
+        // compare prev to current
+        const shouldIntroduce = this._compareStates(prevState, updatedState);
+        // if different, introduce
+        if (shouldIntroduce) this._introduce();
+        // assess win/lose status
+        this.render();
+      }
+
+      calculateSwipeLeft () {
+        this._previousState = this._data;
         const merged = this._mergeRows(this._data);
-        this._data = merged;
-        this.render();
+        return merged;
       }
 
-      swipeRight () {
+      calculateSwipeRight () {
         const merged = this._mergeRows(rotateMatrixDouble(this._data));
-        this._data = rotateMatrixDouble(merged); // transform to original 
-        this.render();
+        return rotateMatrixDouble(merged);
       }
 
-      swipeUp () {
+      calculateSwipeUp () {
         const rotated = rotateMatrixCounterClockwise(this._data)
         const merged = this._mergeRows(rotated);
-        this._data = rotateMatrixClockwise(merged); // transform to original
-        this.render();
+        return rotateMatrixClockwise(merged);
       }
 
-      swipeDown () {
+      calculateSwipeDown () {
         const rotated = rotateMatrixClockwise(this._data);
         const merged = this._mergeRows(rotated);
-        this._data = rotateMatrixCounterClockwise(merged); // transform to original
-        this.render();
+        return rotateMatrixCounterClockwise(merged);
       }
 
       render () {
-        this._introduce(); // TODO: might want to move this out of the render() for separation of concerns
-
         for (let i = 0; i < this._data.length; i++) {
           for (let j = 0; j < this._data.length; j++) {
             const idx = (this._data.length * i) + j; // number 0-15
@@ -360,15 +404,12 @@
       }
 
       _addListeners () {
-        const handleSwipeUp = this.board.swipeUp.bind(this.board);
-        const handleSwipeLeft = this.board.swipeLeft.bind(this.board);
-        const handleSwipeDown = this.board.swipeDown.bind(this.board);
-        const handleSwipeRight = this.board.swipeRight.bind(this.board);
+        const handleSwipe = this.board._handleSwipe.bind(this.board);
 
-        this.swipeUpEl.addEventListener('click', handleSwipeUp)
-        this.swipeLeftEl.addEventListener('click', handleSwipeLeft)
-        this.swipeDownEl.addEventListener('click', handleSwipeDown)
-        this.swipeRightEl.addEventListener('click', handleSwipeRight)
+        this.swipeUpEl.addEventListener('click', handleSwipe)
+        this.swipeLeftEl.addEventListener('click', handleSwipe)
+        this.swipeDownEl.addEventListener('click', handleSwipe)
+        this.swipeRightEl.addEventListener('click', handleSwipe)
 
         this.resetEl.addEventListener('click', (e) => {
           e.preventDefault();
