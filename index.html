@@ -195,15 +195,23 @@
       
       constructor (initData) {
         this.element = document.querySelector(this.constructor.selector);
-        this._data = initData;
+        this._state = initData;
         this._points = [];
 
         this._init();
       }
+
+      get state () {
+        return this._state;
+      }
+
+      set state (newState) {
+        this._state = newState;
+      }
       
       // PRIVATE METHODS
       _init () {
-        if (!this._data) this._data = this.constructor.resetData(); // only update _data if none initialized
+        if (!this._state) this._state = this.constructor.resetData(); // only update _data if none initialized
         if (!this.element.children.length) this._makeGrid();
         this.render();
       }
@@ -214,15 +222,15 @@
         const availableSpaces = this._assessAvailable();
         const idx = Math.round(Math.random() * availableSpaces.length) % availableSpaces.length; // random int based on # of available spaces
         const [x,y] = availableSpaces[idx]; // get matrix coordinates of available space chosen at random
-        this._data[x][y] = newNum;
+        this._state[x][y] = newNum;
       }
 
       _assessAvailable () {
         const availableSpaces = [];
         
-        for (let i = 0; i < this._data.length; i++) {
-          for (let j = 0; j < this._data.length; j++) {
-            if (this._data[i][j] === Point.emptyValues.value) availableSpaces.push([i,j]);
+        for (let i = 0; i < this._state.length; i++) {
+          for (let j = 0; j < this._state.length; j++) {
+            if (this._state[i][j] === Point.emptyValues.value) availableSpaces.push([i,j]);
           }
         }
 
@@ -240,7 +248,7 @@
 
       _makeGrid () {
         this._deleteGrid();
-        const points = this._data.flat().map(val => new Point(val))
+        const points = this._state.flat().map(val => new Point(val))
         this.element.append(...points.map(p => p.element));
         this._points = points;
       }
@@ -301,14 +309,6 @@
         return grid.map(this._mergeRow);
       }
 
-      _handleSwipe (evt) {
-        evt.preventDefault();
-        // determine direction
-        const dir = evt.currentTarget.value
-        // call nextStep
-        this.nextStep(dir);
-      }
-
       _compareStates (prev, curr) {
         for (let i = 0; i < Math.max(prev.length, curr.length); i++) {
           for (let j = 0; j < Math.max(prev.length, curr.length); j++) {
@@ -319,76 +319,89 @@
         return false;
       }
 
-      // PUBLIC METHODS
-      reset () {
-        this._data = this.constructor.resetData();
-        this.render();
+      _calculateSwipeLeft () {
+        const merged = this._mergeRows(this._state);
+        return merged;
       }
 
-      nextStep (direction) {
-        // capture current data
-        const prevState = this._data;
+      _calculateSwipeRight () {
+        const merged = this._mergeRows(rotateMatrixDouble(this._state));
+        return rotateMatrixDouble(merged);
+      }
+
+      _calculateSwipeUp () {
+        const rotated = rotateMatrixCounterClockwise(this._state)
+        const merged = this._mergeRows(rotated);
+        return rotateMatrixClockwise(merged);
+      }
+
+      _calculateSwipeDown () {
+        const rotated = rotateMatrixClockwise(this._state);
+        const merged = this._mergeRows(rotated);
+        return rotateMatrixCounterClockwise(merged);
+      }
+
+      _calculateStateFromSwipe (direction) {
         // call swipe direction
         let updatedState;
         switch (direction) {
           case 'up':
-            updatedState = this.calculateSwipeUp();
+            updatedState = this._calculateSwipeUp();
             break;
           case 'left':
-            updatedState = this.calculateSwipeLeft();
+            updatedState = this._calculateSwipeLeft();
             break;
           case 'down':
-            updatedState = this.calculateSwipeDown();
+            updatedState = this._calculateSwipeDown();
             break;
           case 'right':
-            updatedState = this.calculateSwipeRight();
+            updatedState = this._calculateSwipeRight();
             break;
           default:
-            console.error('invalid action');
+            throw new Error(`Invalid Action: ${ direction }`);
         }
 
-        this._data = updatedState;
+        return updatedState;
+      }
+
+      // PUBLIC METHODS
+      reset () {
+        this._state = this.constructor.resetData();
+        this.render();
+      }
+
+      handleSwipeEvent (evt) {
+        evt.preventDefault();
+        // determine direction
+        const dir = evt.currentTarget.value
+        // call swipe
+        this.swipe(dir);
+      }
+
+      swipe (direction) {
+        if (!direction) throw new Error(`No/Invalid swipe direction provided: ${ direction }`);
+        // capture current data
+        const prevState = this._state;
+        // get new state
+        const newState = this._calculateStateFromSwipe(direction)
+        this.state = newState; // TODO: move to updateState()?
         // compare prev to current
-        const shouldIntroduce = this._compareStates(prevState, updatedState);
+        const shouldIntroduce = this._compareStates(prevState, newState);
         // if different, introduce
         if (shouldIntroduce) this._introduce();
         // assess win/lose status
         this.render();
       }
 
-      calculateSwipeLeft () {
-        this._previousState = this._data;
-        const merged = this._mergeRows(this._data);
-        return merged;
-      }
-
-      calculateSwipeRight () {
-        const merged = this._mergeRows(rotateMatrixDouble(this._data));
-        return rotateMatrixDouble(merged);
-      }
-
-      calculateSwipeUp () {
-        const rotated = rotateMatrixCounterClockwise(this._data)
-        const merged = this._mergeRows(rotated);
-        return rotateMatrixClockwise(merged);
-      }
-
-      calculateSwipeDown () {
-        const rotated = rotateMatrixClockwise(this._data);
-        const merged = this._mergeRows(rotated);
-        return rotateMatrixCounterClockwise(merged);
-      }
-
       render () {
-        for (let i = 0; i < this._data.length; i++) {
-          for (let j = 0; j < this._data.length; j++) {
-            const idx = (this._data.length * i) + j; // number 0-15
+        for (let i = 0; i < this._state.length; i++) {
+          for (let j = 0; j < this._state.length; j++) {
+            const idx = (this._state.length * i) + j; // number 0-15
             const point = this._points[idx];
-            point.render(this._data[i][j]);
+            point.render(this._state[i][j]);
           }
         }
       }
-
     }
 
     class App {
@@ -404,7 +417,7 @@
       }
 
       _addListeners () {
-        const handleSwipe = this.board._handleSwipe.bind(this.board);
+        const handleSwipe = this.board.handleSwipeEvent.bind(this.board);
 
         this.swipeUpEl.addEventListener('click', handleSwipe)
         this.swipeLeftEl.addEventListener('click', handleSwipe)
