@@ -106,37 +106,47 @@
 <body>
   <article>
     <header>
-      This is a clone 2048 game
+      <h1>
+        This is a clone 2048 game
+      </h1>
     </header>
     <section id="main" class="grid-3x3">
       <div class="top-l"></div>
       <div class="top-m">
-        <button type="button" class="swipe swipe-u" id="swipe-up" value="up"></button>
+        <button type="button" class="btn swipe swipe-u js-swipe-btn" id="swipe-up" value="up"></button>
       </div>
       <div class="top-r"></div>
       <div class="mid-l">
         <!-- BOARD goes here -->
-        <button type="button" class="swipe swipe-l" id="swipe-left" value="left"></button>
+        <button type="button" class="btn swipe swipe-l js-swipe-btn" id="swipe-left" value="left"></button>
       </div>
       <div class="mid-m">
         <div id="board" class="board"></div>
       </div>
       <div class="mid-r">
-        <button type="button" class="swipe swipe-r" id="swipe-right" value="right"></button>
+        <button type="button" class="btn swipe swipe-r js-swipe-btn" id="swipe-right" value="right"></button>
       </div>
       <div class="bot-l"></div>
       <div class="bot-m">
-        <button type="button" class="swipe swipe-d" id="swipe-down" value="down"></button>
+        <button type="button" class="btn swipe swipe-d js-swipe-btn" id="swipe-down" value="down"></button>
       </div>
       <div class="bot-r"></div>
+      <!-- https://developer.mozilla.org/en-US/docs/Web/Web_Components -->
+      <custom-modal title="You fucking lost, idiot." description="Maybe don't suck so much? ¯\(ツ)/¯" class="js-modal-lost">
+        <!-- TODO: implement other options for lose state -->
+        <button type="button" id="reset" class="btn reset js-reset-btn">Start Over</button>
+      </custom-modal>
     </section>
     <footer>
       <!-- reset button -->
-      <button type="button" id="reset">Reset</button>
+      <button type="button" id="reset" class="btn reset js-reset-btn">Reset</button>
     </footer>
   </article>
   
+  <script src="modal.js"></script>
   <script type="text/javascript">
+    // TODO: refactor to make each component a WebComponent
+    // TODO: refactor to pull more game logic into App (modal ctrl, end/lose state, "progress" board, etc)
     // UTILS
     const compose = (a, b) => x => a(b(x));
     const reverse = array => [...array].reverse();
@@ -192,26 +202,30 @@
         // NOTE: create square matrix
         return Array.from({length: size}, () => Array.from({length: size}, () => Math.random() > 0.8 ? 2 : null)) // initialize grid with 2's or null
       }
+
+      static modalEvt = 'MODAL';
       
       constructor (initData) {
         this.element = document.querySelector(this.constructor.selector);
-        this._state = initData;
+        this.modal = document.querySelector('.js-modal-lost');
+        this._data = initData;
         this._points = [];
 
         this._init();
       }
 
-      get state () {
-        return this._state;
+      get data () {
+        // NOTE: could set this to always return a copy of the _data matrix, but that might be a performance concern
+        return this._data;
       }
 
-      set state (newState) {
-        this._state = newState;
+      set data (newState) {
+        this._data = newState;
       }
       
       // PRIVATE METHODS
       _init () {
-        if (!this._state) this._state = this.constructor.resetData(); // only update _data if none initialized
+        if (!this._data) this._data = this.constructor.resetData(); // only update _data if none initialized
         if (!this.element.children.length) this._makeGrid();
         this.render();
       }
@@ -222,15 +236,15 @@
         const availableSpaces = this._assessAvailable();
         const idx = Math.round(Math.random() * availableSpaces.length) % availableSpaces.length; // random int based on # of available spaces
         const [x,y] = availableSpaces[idx]; // get matrix coordinates of available space chosen at random
-        this._state[x][y] = newNum;
+        this._data[x][y] = newNum;
       }
 
       _assessAvailable () {
         const availableSpaces = [];
         
-        for (let i = 0; i < this._state.length; i++) {
-          for (let j = 0; j < this._state.length; j++) {
-            if (this._state[i][j] === Point.emptyValues.value) availableSpaces.push([i,j]);
+        for (let i = 0; i < this._data.length; i++) {
+          for (let j = 0; j < this._data.length; j++) {
+            if (this._data[i][j] === Point.emptyValues.value) availableSpaces.push([i,j]);
           }
         }
 
@@ -248,7 +262,7 @@
 
       _makeGrid () {
         this._deleteGrid();
-        const points = this._state.flat().map(val => new Point(val))
+        const points = this._data.flat().map(val => new Point(val))
         this.element.append(...points.map(p => p.element));
         this._points = points;
       }
@@ -319,26 +333,26 @@
         return false;
       }
 
-      _calculateSwipeLeft () {
-        const merged = this._mergeRows(this._state);
-        return merged;
-      }
-
-      _calculateSwipeRight () {
-        const merged = this._mergeRows(rotateMatrixDouble(this._state));
-        return rotateMatrixDouble(merged);
-      }
-
-      _calculateSwipeUp () {
-        const rotated = rotateMatrixCounterClockwise(this._state)
+      _mergeUp () {
+        const rotated = rotateMatrixCounterClockwise(this._data)
         const merged = this._mergeRows(rotated);
         return rotateMatrixClockwise(merged);
       }
 
-      _calculateSwipeDown () {
-        const rotated = rotateMatrixClockwise(this._state);
+      _mergeLeft () {
+        const merged = this._mergeRows(this._data);
+        return merged;
+      }
+
+      _mergeDown () {
+        const rotated = rotateMatrixClockwise(this._data);
         const merged = this._mergeRows(rotated);
         return rotateMatrixCounterClockwise(merged);
+      }
+
+      _mergeRight () {
+        const merged = this._mergeRows(rotateMatrixDouble(this._data));
+        return rotateMatrixDouble(merged);
       }
 
       _calculateStateFromSwipe (direction) {
@@ -346,16 +360,16 @@
         let updatedState;
         switch (direction) {
           case 'up':
-            updatedState = this._calculateSwipeUp();
+            updatedState = this._mergeUp();
             break;
           case 'left':
-            updatedState = this._calculateSwipeLeft();
+            updatedState = this._mergeLeft();
             break;
           case 'down':
-            updatedState = this._calculateSwipeDown();
+            updatedState = this._mergeDown();
             break;
           case 'right':
-            updatedState = this._calculateSwipeRight();
+            updatedState = this._mergeRight();
             break;
           default:
             throw new Error(`Invalid Action: ${ direction }`);
@@ -364,10 +378,47 @@
         return updatedState;
       }
 
+      _hasLost () {
+        // if there are no nulls && no mergeable neighbors, user has lost
+        const matrix = this.data;
+        const Y_BOUND = matrix.length;
+        const X_BOUND = matrix[0].length;
+        
+        for (let y = 0; y < Y_BOUND; y++) {
+          for (let x = 0; x < X_BOUND; x++) {
+            const curr = matrix[y][x];
+
+            // NOTE: avoid out of bounds/reference errors on access
+            //  - can't use `null` as that is the data value for 'empty space'
+            const u = y !== 0 ? matrix[y-1][x] : undefined,
+                  l = x !== 0 ? matrix[y][x-1] : undefined,
+                  d = y !== Y_BOUND-1 ? matrix[y+1][x] : undefined,
+                  r = x !== X_BOUND-1 ? matrix[y][x+1] : undefined;
+
+            if (curr === u || curr === l || curr === d || curr === r || curr === Point.emptyValues.value) return false;
+          }
+        }
+
+        return true;
+      }
+
+      _setModal (message) {
+        this.modal.dispatchEvent(new CustomEvent(Board.modalEvt, { detail: { message } }));
+      }
+
+      _modalOpen () {
+        this._setModal('OPEN');
+      }
+
+      _modalClose () {
+        this._setModal('CLOSE');
+      }
+
       // PUBLIC METHODS
       reset () {
-        this._state = this.constructor.resetData();
+        this._data = this.constructor.resetData();
         this.render();
+        this._modalClose();
       }
 
       handleSwipeEvent (evt) {
@@ -381,10 +432,13 @@
       swipe (direction) {
         if (!direction) throw new Error(`No/Invalid swipe direction provided: ${ direction }`);
         // capture current data
-        const prevState = this._state;
+        const prevState = this._data;
         // get new state
         const newState = this._calculateStateFromSwipe(direction)
-        this.state = newState; // TODO: move to updateState()?
+        this.data = newState; // TODO: move to an updateState()?
+
+        const hasLost = this._hasLost();
+        if (hasLost) return this.end();
         // compare prev to current
         const shouldIntroduce = this._compareStates(prevState, newState);
         // if different, introduce
@@ -393,12 +447,18 @@
         this.render();
       }
 
+      end () {
+        // prevent any more game progress
+        // show lost modal
+        this._modalOpen();
+      }
+
       render () {
-        for (let i = 0; i < this._state.length; i++) {
-          for (let j = 0; j < this._state.length; j++) {
-            const idx = (this._state.length * i) + j; // number 0-15
+        for (let i = 0; i < this._data.length; i++) {
+          for (let j = 0; j < this._data.length; j++) {
+            const idx = (this._data.length * i) + j; // number 0-15
             const point = this._points[idx];
-            point.render(this._state[i][j]);
+            point.render(this._data[i][j]);
           }
         }
       }
@@ -407,11 +467,12 @@
     class App {
       constructor () {
         this.board = new Board();
-        this.swipeUpEl = document.querySelector('#swipe-up');
-        this.swipeLeftEl = document.querySelector('#swipe-left');
-        this.swipeDownEl = document.querySelector('#swipe-down');
-        this.swipeRightEl = document.querySelector('#swipe-right');
-        this.resetEl = document.querySelector('#reset');
+        // this.swipeUpEl = document.querySelector('#swipe-up');
+        // this.swipeLeftEl = document.querySelector('#swipe-left');
+        // this.swipeDownEl = document.querySelector('#swipe-down');
+        // this.swipeRightEl = document.querySelector('#swipe-right');
+        this.swipeBtnEls = [].slice.call(document.querySelectorAll('.js-swipe-btn'));
+        this.resetEls = [].slice.call(document.querySelectorAll('.js-reset-btn'));
 
         this._addListeners();
       }
@@ -419,15 +480,16 @@
       _addListeners () {
         const handleSwipe = this.board.handleSwipeEvent.bind(this.board);
 
-        this.swipeUpEl.addEventListener('click', handleSwipe)
-        this.swipeLeftEl.addEventListener('click', handleSwipe)
-        this.swipeDownEl.addEventListener('click', handleSwipe)
-        this.swipeRightEl.addEventListener('click', handleSwipe)
+        // this.swipeUpEl.addEventListener('click', handleSwipe)
+        // this.swipeLeftEl.addEventListener('click', handleSwipe)
+        // this.swipeDownEl.addEventListener('click', handleSwipe)
+        // this.swipeRightEl.addEventListener('click', handleSwipe)
+        this.swipeBtnEls.forEach(el => el.addEventListener('click', handleSwipe))
 
-        this.resetEl.addEventListener('click', (e) => {
+        this.resetEls.forEach(el => el.addEventListener('click', (e) => {
           e.preventDefault();
           this.board.reset();
-        })
+        }))
       }
     }
 
