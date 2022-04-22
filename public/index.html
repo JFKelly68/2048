@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2048 Clone</title>
+  <link rel="icon" type="image/x-icon" href="public/icons/grid-filled-32.png">
+  <style>
+    .grid-3x3 {
+      display: grid;
+      grid-template-columns: 1fr 5fr 1fr;
+      grid-template-rows: 1fr 5fr 1fr;
+    }
+
+    header,
+    footer {
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <article>
+    <header>
+      <h1>
+        This is a clone 2048 game
+      </h1>
+    </header>
+    <section id="main">
+      <game-app class="grid-3x3" size="4"></game-app>
+    </section>
+    <footer>
+      <!-- reset button -->
+      <button type="button" id="reset" class="btn reset js-reset-btn">Reset</button>
+    </footer>
+  </article>
+  
+  <!-- <script src="src/components/Board.js" type="module"></script>
+  <script src="src/components/Cell.js" type="module"></script>
+  <script src="src/components/CustomModal.js" type="module"></script> -->
+  <script src="public/web.js" type="module"></script>
+  <script type="text/javascript">
+    // document.addEventListener('DOMContentLoaded', () => {
+    //   var testing = 'bloop'
+    //   console.log('LOADED', testing, lib);
+    //   const app = new lib.App();
+    //   console.log('FIRES', app);
+    // });
+    // Usage: DOMContentLoaded(function(e) { console.log(e); /* your code here */});
+
+      function DOMContentLoaded() { 
+        "use strict";
+
+        var ael = 'addEventListener', rel = 'removeEventListener', aev = 'attachEvent', dev = 'detachEvent';
+        var alreadyRun = false,
+            funcs = arguments; // for use in the idempotent function `ready()`, defined later.
+
+        function microtime() { return + new Date() } // new Date().valueOf();
+
+        var jscript_version = Number( new Function("/*@cc_on return @_jscript_version; @*\/")() );
+
+        // check if the DOM has already loaded
+        // If it has, send null as the readyTime, since we don't know when the DOM became ready.
+
+        if (document.readyState === 'complete') { ready(null); return; } // execute ready()
+
+        // ael: addEventListener, rel: removeEventListener, aev: attachEvent, dev: detachEvent
+
+        if (document[ael]) {
+            document[ael]("DOMContentLoaded", ready, false);
+
+            // fallback to the universal load event in case DOMContentLoaded isn't supported.
+            window[ael]("load", ready, false);
+        } else
+        if (aev in window) { window[aev]('onload', ready);
+            // Old Opera has a default of window.attachEvent being falsy, so we use the in operator instead.
+            // https://dev.opera.com/blog/window-event-attachevent-detachevent-script-onreadystatechange/
+        } else {
+            // fallback to window.onload that will always work.
+            addOnload(ready);
+        }
+
+        // addOnload: Allows us to preserve any original `window.onload` handlers,
+        // in ancient (prehistoric?) browsers where this is even necessary, while providing the
+        // option to chain onloads, and dequeue them later.
+
+        function addOnload(fn) {
+
+            var prev = window.onload; // old `window.onload`, which could be set by this function, or elsewhere.
+
+            // Here we add a function queue list to allow for dequeueing.
+            // Should we have to use window.onload, `addOnload.queue` is the queue of functions
+            // that we will run when the DOM is ready.
+
+            if ( typeof addOnload.queue !== 'object') { // allow loose comparison of arrays
+                addOnload.queue = [];
+                if (typeof prev === 'function') {
+                    addOnload.queue.push( prev ); // add the previously defined event handler, if any.
+                }
+            }
+
+            if (typeof fn === 'function') { addOnload.queue.push(fn) } // add the new function
+
+            window.onload = function() { // iterate through the queued functions
+                for (var i = 0; i < addOnload.queue.length; i++) { addOnload.queue[i]() }
+            };
+        }
+
+        // dequeueOnload: remove a queued `addOnload` function from the chain.
+
+        function dequeueOnload(fn, all) {
+
+            // Sort backwards through the queued functions in `addOnload.queue` (if it's defined)
+            // until we find `fn`, and then remove `fn` from its place in the array.
+
+            if (typeof addOnload.queue === 'object') { // array
+                for (var i = addOnload.queue.length-1; i >= 0; i--) { // iterate backwards
+                    if (fn === addOnload.queue[i]) {
+                        addOnload.queue.splice(i,1); if (!all) {break}
+                    }
+                }
+            }
+        }
+
+        // ready: idempotent event handler function
+
+        function ready(ev) {
+            if (alreadyRun) {return} alreadyRun = true;
+
+            // This time is when the DOM has loaded, or, if all else fails,
+            // when it was actually possible to inference that the DOM has loaded via a 'load' event.
+
+            var readyTime = microtime();
+
+            detach(); // detach any event handlers
+
+            // run the functions (`funcs` is arguments of DOMContentLoaded)
+            for (var i=0; i < funcs.length; i++) {
+
+                var func = funcs[i];
+
+                if (typeof func === 'function') {
+
+                    // force set `this` to `document`, for consistency.
+                    func.call(document, {
+                      'readyTime': (ev === null ? null : readyTime),
+                      'funcExecuteTime': microtime(),
+                      'currentFunction': func
+                    });
+                }
+            }
+
+            // const app = new lib.App();
+            // console.log('FIRES', app);
+        }
+
+        // detach: detach all the currently registered events.
+
+        function detach() {
+            if (document[rel]) {
+                document[rel]("DOMContentLoaded", ready); window[rel]("load", ready);
+            } else
+            if (dev in window) { window[dev]("onload", ready); }
+            else {
+                dequeueOnload(ready);
+            }
+        }
+    }
+
+// Tested via BrowserStack.
+
+  </script>
+</body>
+
+</html>
