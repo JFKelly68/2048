@@ -1,10 +1,12 @@
-import Cell from './Cell';
 import { rotateMatrixClockwise, rotateMatrixCounterClockwise, reverseMatrix } from '../utils';
 import DynamicComponent from './Dynamic';
+import Cell from './Cell';
+import { EVENTS as AppEvents } from './App';
 
 export const EVENTS = {
   SWIPE: 'swipe',
   RESET: 'reset',
+  LOSE: 'lose',
 }
 
 export default class Board extends DynamicComponent {
@@ -12,7 +14,7 @@ export default class Board extends DynamicComponent {
     super();
   
     this._state = this.constructor.resetData();
-    this._cells = Array.from(this.shadowRoot.querySelectorAll(Cell.tagName));
+    this._cells = Array.from(this.querySelectorAll(Cell.tagName));
 
     this.element = null;
   }
@@ -57,7 +59,7 @@ export default class Board extends DynamicComponent {
         grid-template-columns: repeat(4, minmax(100px, 1fr));
         grid-auto-rows: minmax(100px, auto);
       }
-      
+
       .cell {
         display: grid;
         align-items: center;
@@ -115,7 +117,7 @@ export default class Board extends DynamicComponent {
   // TODO: add attributeChangedCallback && observedAttributes for 'size'
 
   connectedCallback () {
-    this.element = this.shadowRoot.querySelector(Board.selector);
+    this.element = this.querySelector(Board.selector);
     this._addListeners();
     this.render();
   }
@@ -125,9 +127,11 @@ export default class Board extends DynamicComponent {
   _addListeners () {
     this._onSwipe = this._onSwipe.bind(this);
     this._onReset = this._onReset.bind(this);
+    this._onEnd = this._onEnd.bind(this);
 
     this.addEventListener(EVENTS.SWIPE, this._onSwipe);
     this.addEventListener(EVENTS.RESET, this._onReset);
+    this.addEventListener(AppEvents.END, this._onEnd);
   }
 
   _onSwipe (evt) {
@@ -141,10 +145,16 @@ export default class Board extends DynamicComponent {
     this.reset();
   }
 
+  _onEnd (evt) {
+    evt.preventDefault()
+    this.lose();
+  }
+
   _introduce () {
     // take the existing data and add a new 2 or 4 to an available slot
     const newNum = Math.random() > 0.4 ? 2 : 4; // trend towards 2s
     const availableSpaces = this._assessAvailable();
+    if (!availableSpaces.length) return; // TODO: see refactor TODO in swipe()
     const idx = Math.round(Math.random() * availableSpaces.length) % availableSpaces.length; // random int based on # of available spaces
     const [x,y] = availableSpaces[idx]; // get matrix coordinates of available space chosen at random
     this._state[x][y] = newNum;
@@ -295,14 +305,20 @@ export default class Board extends DynamicComponent {
     this.render();
   }
 
+  lose () {
+    const loseEvt = this.constructor.makeEvent(EVENTS.LOSE);
+    this.dispatchEvent(loseEvt);
+  }
+
   swipe (direction) {
     if (!direction) throw new Error(`No/Invalid swipe direction provided: ${ direction }`);
     // capture current data
     const prevState = this._state;
     // get new state
     const newState = this._calculateStateFromSwipe(direction)
-    this.state = newState; // TODO: move to updateState()?
+    this.state = newState; // TODO: move to an updateState() method?
     // compare prev to current
+    // TODO: refactor to capture an available space ([x,y]) to pass into _introduce
     const shouldIntroduce = this._compareStates(prevState, newState);
     // if different, introduce
     if (shouldIntroduce) this._introduce();

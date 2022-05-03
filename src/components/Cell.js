@@ -4,7 +4,7 @@ export default class Cell extends DynamicComponent {
   constructor () {
     super();
     
-    this.contentEl = this.shadowRoot.querySelector('span');
+    this.contentEl = this.querySelector('span');
   }
 
   static tagName = 'game-cell';

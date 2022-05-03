@@ -6,20 +6,22 @@ var lib = (() => {
     return value;
   };
 
+  // src/utils/index.js
+  var compose = (a, b) => (x) => a(b(x));
+  var reverse = (array) => [...array].reverse();
+  var flipMatrix = (matrix) => matrix[0].map((column, index) => matrix.map((row) => row[index]));
+  var rotateMatrixClockwise = compose(flipMatrix, reverse);
+  var rotateMatrixCounterClockwise = compose(reverse, flipMatrix);
+  var reverseMatrix = (matrix) => matrix.map((row) => row.reverse());
+
   // src/components/Dynamic.js
   var DynamicComponent = class extends HTMLElement {
     constructor() {
       super();
-      this.attachShadow({ mode: "open" });
-      const shadow = this.shadowRoot;
-      const styles2 = this.constructor.styles();
-      const stylesTemplate = this.constructor.makeTemplateElement(styles2);
-      const cloneStyles = stylesTemplate.content.cloneNode(true);
+      const styles = this.constructor.styles();
       const attrs = Object.entries(this.constructor.attributes).reduce((acc, [key, val]) => ({ ...acc, [key]: this.getAttribute(val) }), {});
       const rendered = this.constructor.template(attrs);
-      const template = this.constructor.makeTemplateElement(rendered);
-      const cloneChild = template.content.cloneNode(true);
-      shadow.append(cloneStyles, cloneChild);
+      this.innerHTML = `${styles}${rendered}`;
     }
     static makeTemplateElement(tmpl) {
       const template = document.createElement("template");
@@ -28,6 +30,9 @@ var lib = (() => {
     }
     static makeEvent(name, data) {
       return new CustomEvent(name, { bubbles: true, ...data });
+    }
+    static get tagName() {
+      throw new Error(`${this.constructor.name} class must overwrite the static get method "tagName"`);
     }
     static styles() {
       return `<style></style>`;
@@ -44,7 +49,7 @@ var lib = (() => {
   var _Cell = class extends DynamicComponent {
     constructor() {
       super();
-      this.contentEl = this.shadowRoot.querySelector("span");
+      this.contentEl = this.querySelector("span");
     }
     static get className() {
       return "cell";
@@ -79,24 +84,17 @@ var lib = (() => {
   });
   __publicField(Cell, "observedAttributes", Object.values(_Cell.attributes));
 
-  // src/utils/index.js
-  var compose = (a, b) => (x) => a(b(x));
-  var reverse = (array) => [...array].reverse();
-  var flipMatrix = (matrix) => matrix[0].map((column, index) => matrix.map((row) => row[index]));
-  var rotateMatrixClockwise = compose(flipMatrix, reverse);
-  var rotateMatrixCounterClockwise = compose(reverse, flipMatrix);
-  var reverseMatrix = (matrix) => matrix.map((row) => row.reverse());
-
   // src/components/Board.js
-  var EVENTS = {
+  var EVENTS2 = {
     SWIPE: "swipe",
-    RESET: "reset"
+    RESET: "reset",
+    LOSE: "lose"
   };
   var _Board = class extends DynamicComponent {
     constructor() {
       super();
       this._state = this.constructor.resetData();
-      this._cells = Array.from(this.shadowRoot.querySelectorAll(Cell.tagName));
+      this._cells = Array.from(this.querySelectorAll(Cell.tagName));
       this.element = null;
     }
     get state() {
@@ -122,7 +120,7 @@ var lib = (() => {
         grid-template-columns: repeat(4, minmax(100px, 1fr));
         grid-auto-rows: minmax(100px, auto);
       }
-      
+
       .cell {
         display: grid;
         align-items: center;
@@ -174,15 +172,17 @@ var lib = (() => {
     `;
     }
     connectedCallback() {
-      this.element = this.shadowRoot.querySelector(_Board.selector);
+      this.element = this.querySelector(_Board.selector);
       this._addListeners();
       this.render();
     }
     _addListeners() {
       this._onSwipe = this._onSwipe.bind(this);
       this._onReset = this._onReset.bind(this);
-      this.addEventListener(EVENTS.SWIPE, this._onSwipe);
-      this.addEventListener(EVENTS.RESET, this._onReset);
+      this._onEnd = this._onEnd.bind(this);
+      this.addEventListener(EVENTS2.SWIPE, this._onSwipe);
+      this.addEventListener(EVENTS2.RESET, this._onReset);
+      this.addEventListener(EVENTS.END, this._onEnd);
     }
     _onSwipe(evt) {
       evt.preventDefault();
@@ -193,9 +193,15 @@ var lib = (() => {
       evt.preventDefault();
       this.reset();
     }
+    _onEnd(evt) {
+      evt.preventDefault();
+      this.lose();
+    }
     _introduce() {
       const newNum = Math.random() > 0.4 ? 2 : 4;
       const availableSpaces = this._assessAvailable();
+      if (!availableSpaces.length)
+        return;
       const idx = Math.round(Math.random() * availableSpaces.length) % availableSpaces.length;
       const [x, y] = availableSpaces[idx];
       this._state[x][y] = newNum;
@@ -296,6 +302,10 @@ var lib = (() => {
       this._state = this.constructor.resetData();
       this.render();
     }
+    lose() {
+      const loseEvt = this.constructor.makeEvent(EVENTS2.LOSE);
+      this.dispatchEvent(loseEvt);
+    }
     swipe(direction) {
       if (!direction)
         throw new Error(`No/Invalid swipe direction provided: ${direction}`);
@@ -327,13 +337,154 @@ var lib = (() => {
     size: "size"
   });
 
-  // src/components/App.js
-  var App = class extends DynamicComponent {
+  // src/components/CustomModal.js
+  var STYLES2 = {
+    TRANSITION_LENGTH: "300ms",
+    TRANSLATE_DISTANCE: "200px"
+  };
+  var EVENTS3 = {
+    TOGGLE: "toggle",
+    OPEN: "open",
+    CLOSE: "close"
+  };
+  var _CustomModal = class extends DynamicComponent {
     constructor() {
       super();
-      this.boardEl = this.shadowRoot.querySelector(Board.tagName);
-      this.swipeBtnEls = Array.from(this.shadowRoot.querySelectorAll(".js-swipe-btn"));
-      this.resetEls = Array.from(this.shadowRoot.querySelectorAll(".js-reset-btn"));
+    }
+    static styles() {
+      return `
+      <style>
+        .${_CustomModal.className} {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          opacity: 1;
+          
+          display: flex;
+          align-items: center;
+      
+          transition: opacity ${STYLES2.TRANSITION_LENGTH};
+        }
+      
+        .${_CustomModal.className}-bg {
+          position: absolute;
+          width: 100%;
+          height: 100%;
+          top: 0;
+          left: 0;
+          background-color: rgba(0,0,0,0.3);
+        }
+      
+        .${_CustomModal.className}-content {
+          margin: 0 auto;
+          width: 60%;
+          min-width: 300px;
+          background-color: #FFFFFF;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          text-align: center;
+      
+          transform: translate3d(0, 0, 0);
+          transition: transform ${STYLES2.TRANSITION_LENGTH} ease-out;
+        }
+      </style>
+    `;
+    }
+    static template({ heading, description }) {
+      return `
+      <div class="${_CustomModal.className}-bg"></div>
+      <article class="${_CustomModal.className}-content">
+        <h4 class="js-${_CustomModal.className}-heading"><slot name="heading">${heading}</slot></h4>
+        <p class="js-${_CustomModal.className}-description"><slot name="description">${description}</slot></p>
+        <section class="${_CustomModal.className}-options">
+          <slot>Default slot content</slot>
+        </section>
+      </article>
+    `;
+    }
+    attributeChangedCallback(name, old, fresh) {
+      switch (name) {
+        case _CustomModal.attributes.heading:
+        case _CustomModal.attributes.description:
+          this.render({ [name]: fresh });
+          break;
+        default:
+          throw new Error(`Unknown attribute: ${name} updated`);
+      }
+    }
+    connectedCallback() {
+      this.addListeners();
+    }
+    addListeners() {
+      this._onToggle = this._onToggle.bind(this);
+      this.addEventListener(EVENTS3.TOGGLE, this._onToggle);
+    }
+    render({ heading, description }) {
+      if (heading)
+        this.querySelector(`.${_CustomModal.selector}-heading`).innerText = heading;
+      if (description)
+        this.querySelector(`.${_CustomModal.selector}-description`).innerText = description;
+    }
+    _onToggle(evt) {
+      evt.stopPropagation();
+      const { message } = evt.detail;
+      switch (message) {
+        case EVENTS3.OPEN:
+          this.open();
+          break;
+        case EVENTS3.CLOSE:
+          this.close();
+          break;
+        default:
+          console.error(`Invalid modal message: ${message}`);
+          break;
+      }
+    }
+    open() {
+      this.classList.remove(STYLES.HIDE_CLASS);
+    }
+    close() {
+      this.classList.add(STYLES.HIDE_CLASS);
+    }
+  };
+  var CustomModal = _CustomModal;
+  __publicField(CustomModal, "tagName", "custom-modal");
+  __publicField(CustomModal, "className", "modal");
+  __publicField(CustomModal, "selector", `js-${_CustomModal.className}`);
+  __publicField(CustomModal, "attributes", {
+    heading: "heading",
+    description: "description"
+  });
+  __publicField(CustomModal, "htmlAttributes", {
+    role: "dialog",
+    "aria-labelledby": "dialog"
+  });
+  __publicField(CustomModal, "classList", [
+    _CustomModal.className,
+    `js-${_CustomModal.className}`
+  ]);
+  __publicField(CustomModal, "observedAttributes", Object.values(_CustomModal.attributes));
+
+  // src/components/App.js
+  var STYLES = {
+    HIDE_CLASS: "hidden"
+  };
+  var EVENTS = {
+    RESET: "reset",
+    END: "end"
+  };
+  var _App = class extends DynamicComponent {
+    constructor() {
+      super();
+      this.boardEl = this.querySelector(Board.tagName);
+      this.modalEl = this.querySelector(CustomModal.tagName);
+      this.swipeBtnEls = Array.from(this.querySelectorAll(`.js-${_App.actions.swipe}-btn`));
+      this.resetEls = Array.from(this.querySelectorAll(`.js-${_App.actions.reset}-btn`));
+      this.endEl = this.querySelector(`.js-${_App.actions.end}-btn`);
     }
     static styles() {
       return `
@@ -347,13 +498,13 @@ var lib = (() => {
           align-items: center;
         }
 
-        .swipe {
+        .${_App.actions.swipe} {
           position: relative;
           width: 80px;
           height: 40px;
         }
     
-        .swipe::after {
+        .${_App.actions.swipe}::after {
           content: '^';
           display: flex;
           position: absolute;
@@ -366,192 +517,113 @@ var lib = (() => {
           transform-origin: center;
         }
 
-        .swipe-l {
+        .${_App.actions.swipe}-l {
           transform: rotate(-90deg);
         }
-        .swipe-r {
+        .${_App.actions.swipe}-r {
           transform: rotate(90deg);
         }
-        .swipe-d {
+        .${_App.actions.swipe}-d {
           transform: rotate(180deg);
+        }
+
+        .${STYLES.HIDE_CLASS}.${CustomModal.className} {
+          opacity: 0;
+          z-index: -1;
+        }
+      
+        .${STYLES.HIDE_CLASS} .${CustomModal.className}-content {
+          transform: translate3d(0, ${STYLES2.TRANSLATE_DISTANCE}, 0);
         }
       </style>
     `;
     }
     static template({ size }) {
       return `
+      <section class="grid-3x3">
       <div class="top-l"></div>
       <div class="top-m">
-        <button type="button" class="btn swipe swipe-u js-swipe-btn" id="swipe-up" value="up"></button>
+        <button type="button" class="btn ${_App.actions.swipe} ${_App.actions.swipe}-u js-${_App.actions.swipe}-btn" id="${_App.actions.swipe}-up" value="up"></button>
       </div>
       <div class="top-r"></div>
       <div class="mid-l">
-        <button type="button" class="btn swipe swipe-l js-swipe-btn" id="swipe-left" value="left"></button>
+        <button type="button" class="btn ${_App.actions.swipe} ${_App.actions.swipe}-l js-${_App.actions.swipe}-btn" id="${_App.actions.swipe}-left" value="left"></button>
       </div>
       <div class="mid-m js-board-container">
-        <game-board class="${Board.classList.join(" ")}" size="${size}"></game-board>
+        <${Board.tagName} class="${Board.classList.join(" ")}" size="${size}"></${Board.tagName}>
       </div>
       <div class="mid-r">
-        <button type="button" class="btn swipe swipe-r js-swipe-btn" id="swipe-right" value="right"></button>
+        <button type="button" class="btn ${_App.actions.swipe} ${_App.actions.swipe}-r js-${_App.actions.swipe}-btn" id="${_App.actions.swipe}-right" value="right"></button>
       </div>
       <div class="bot-l"></div>
       <div class="bot-m">
-        <button type="button" class="btn swipe swipe-d js-swipe-btn" id="swipe-down" value="down"></button>
+        <button type="button" class="btn ${_App.actions.swipe} ${_App.actions.swipe}-d js-${_App.actions.swipe}-btn" id="${_App.actions.swipe}-down" value="down"></button>
       </div>
       <div class="bot-r"></div>
-      <custom-modal heading="You fucking lost, idiot." description="Maybe don't suck so much? \xAF(\u30C4)/\xAF" class="js-modal-lost">
-        <!-- TODO: implement other options for lose state -->
-        <button type="button" id="reset" class="btn reset js-reset-btn">Start Over</button>
-      </custom-modal>
+      </section>
+      <footer>
+        <button type="button" id="${_App.actions.reset}" class="btn ${_App.actions.reset} js-${_App.actions.reset}-btn">Reset</button>
+        <button type="button" id="${_App.actions.end}" class="btn ${_App.actions.end} js-${_App.actions.end}-btn">End</button>
+      </footer>
+      <${CustomModal.tagName} class="${CustomModal.classList.join(" ")} ${STYLES.HIDE_CLASS}"
+        ${Object.entries(CustomModal.htmlAttributes).reduce((acc, [attr, value]) => `${acc} ${attr}="${value}"`, "")}
+        heading="You fucking lost, idiot." 
+        description="Maybe don't suck so much? \xAF\\(\u30C4)/\xAF"
+      >
+        <button type="button" id="${_App.actions.reset}" class="btn ${_App.actions.reset} js-${_App.actions.reset}-btn">Start Over</button>
+      </${CustomModal.tagName}>
     `;
     }
     connectedCallback() {
       this._addListeners();
     }
     _addListeners() {
-      const handleSwipe = this.swipe.bind(this);
-      const handleReset = this.reset.bind(this);
-      this.swipeBtnEls.forEach((el) => el.addEventListener("click", handleSwipe));
-      this.resetEls.forEach((el) => el.addEventListener("click", handleReset));
+      this._onSwipe = this._onSwipe.bind(this);
+      this._onReset = this._onReset.bind(this);
+      this._onLose = this._onLose.bind(this);
+      this._onEnd = this._onEnd.bind(this);
+      this.swipeBtnEls.forEach((el) => el.addEventListener("click", this._onSwipe));
+      this.resetEls.forEach((el) => el.addEventListener("click", this._onReset));
+      this.endEl.addEventListener("click", this._onEnd);
+      this.addEventListener(EVENTS2.LOSE, this._onLose);
     }
-    swipe(evt) {
+    _onEnd(evt) {
+      evt.stopPropagation();
+      const endEvt = this.constructor.makeEvent(EVENTS.END);
+      this.boardEl.dispatchEvent(endEvt);
+    }
+    _onLose(evt) {
+      evt.stopPropagation();
+      const openModalEvt = this.constructor.makeEvent(EVENTS3.TOGGLE, { detail: { message: EVENTS3.OPEN } });
+      this.modalEl.dispatchEvent(openModalEvt);
+    }
+    _onSwipe(evt) {
       evt.preventDefault();
       const direction = evt.currentTarget.value;
-      const swipeEvt = this.constructor.makeEvent(EVENTS.SWIPE, { detail: { direction } });
+      const swipeEvt = this.constructor.makeEvent(EVENTS2.SWIPE, { detail: { direction } });
       this.boardEl.dispatchEvent(swipeEvt);
     }
-    reset(evt) {
+    _onReset(evt) {
       evt.preventDefault();
-      const resetEvt = this.constructor.makeEvent(EVENTS.RESET);
+      const resetEvt = this.constructor.makeEvent(EVENTS2.RESET);
       this.boardEl.dispatchEvent(resetEvt);
     }
   };
+  var App = _App;
+  __publicField(App, "tagName", "game-app");
   __publicField(App, "defaultSize", 4);
   __publicField(App, "attributes", {
     size: "size"
   });
-
-  // src/components/CustomModal.js
-  var CLASS_NAME = "modal";
-  var CSS_TRANSITION_LENGTH = "300ms";
-  var CSS_TRANSLATE_DISTANCE = "200px";
-  var CSS_HIDE_CLASS = "hidden";
-  var EVENTS2 = {
-    MAIN: CLASS_NAME,
-    OPEN: "open",
-    CLOSE: "close",
-    TOGGLE: "toggle"
-  };
-  var elementTmpl = document.createElement("template");
-  var styles = document.createElement("style");
-  styles.innerHTML = `
-  .${CLASS_NAME} {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    opacity: 1;
-    
-    display: flex;
-    align-items: center;
-
-    transition: opacity ${CSS_TRANSITION_LENGTH};
-  }
-
-  .${CLASS_NAME}-bg {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    top: 0;
-    left: 0;
-    background-color: rgba(0,0,0,0.3);
-  }
-
-  .${CLASS_NAME}-content {
-    margin: 0 auto;
-    width: 60%;
-    min-width: 300px;
-    background-color: #FFFFFF;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-
-    transform: translate3d(0, 0, 0);
-    transition: transform ${CSS_TRANSITION_LENGTH} ease-out;
-  }
-
-  .${CSS_HIDE_CLASS}.${CLASS_NAME} {
-    opacity: 0;
-    z-index: -1;
-  }
-
-  .${CSS_HIDE_CLASS} .${CLASS_NAME}-content {
-    transform: translate3d(0, ${CSS_TRANSLATE_DISTANCE}, 0);
-  }
-`;
-  elementTmpl.innerHTML = `
-<aside class="${CLASS_NAME} ${CSS_HIDE_CLASS} js-${CLASS_NAME}" id="${CLASS_NAME}" role="dialog" aria-labelledby="dialog">
-  <div class="${CLASS_NAME}-bg"></div>
-  <article class="${CLASS_NAME}-content">
-    <h4 class="js-${CLASS_NAME}-heading"><slot name="heading"></slot></h4>
-    <p class="js-${CLASS_NAME}-description"><slot name="description"></slot></p>
-    <section class="${CLASS_NAME}-options">
-      <slot></slot>
-    </section>
-  </article>
-</aside>
-`;
-  var _CustomModal = class extends HTMLElement {
-    constructor() {
-      super();
-      const shadow = this.attachShadow({ mode: "open" });
-      shadow.appendChild(styles);
-      shadow.appendChild(elementTmpl.content.cloneNode(true));
-    }
-    connectedCallback() {
-      this.element = this.shadowRoot.querySelector(`${_CustomModal.selector}`);
-      this.addListeners();
-      this.render();
-    }
-    addListeners() {
-      this.open = this.open.bind(this);
-      this.close = this.close.bind(this);
-      this.addEventListener(EVENTS2.MAIN, (evt) => {
-        evt.preventDefault();
-        const { message } = evt.detail;
-        switch (message) {
-          case "OPEN":
-            this.open();
-            break;
-          case "CLOSE":
-            this.close();
-            break;
-          default:
-            console.error(`Invalid modal message: ${message}`);
-            break;
-        }
-      });
-    }
-    render() {
-      this.shadowRoot.querySelector(`${_CustomModal.selector}-heading`).innerText = this.getAttribute("heading");
-      this.shadowRoot.querySelector(`${_CustomModal.selector}-description`).innerText = this.getAttribute("desctiption");
-    }
-    open() {
-      this.element.classList.remove(CSS_HIDE_CLASS);
-    }
-    close() {
-      this.element.classList.add(CSS_HIDE_CLASS);
-    }
-  };
-  var CustomModal = _CustomModal;
-  __publicField(CustomModal, "selector", `.js-${CLASS_NAME}`);
+  __publicField(App, "actions", {
+    swipe: "swipe",
+    reset: "reset",
+    end: "end"
+  });
 
   // src/web.js
-  window.customElements.define("game-app", App);
-  window.customElements.define("game-board", Board, { is: "article" });
-  window.customElements.define("game-cell", Cell);
-  window.customElements.define("custom-modal", CustomModal);
+  window.customElements.define(App.tagName, App);
+  window.customElements.define(Board.tagName, Board, { is: "article" });
+  window.customElements.define(Cell.tagName, Cell);
+  window.customElements.define(CustomModal.tagName, CustomModal, { is: "aside" });
 })();
