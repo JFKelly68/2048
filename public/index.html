@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2048 Clone</title>
+  <link rel="icon" type="image/x-icon" href="public/icons/grid-filled-32.png">
+  <style>
+    .grid-3x3 {
+      display: grid;
+      grid-template-columns: 1fr 5fr 1fr;
+      grid-template-rows: 1fr 5fr 1fr;
+    }
+
+    header,
+    footer {
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <article>
+    <header>
+      <h1>
+        This is a clone 2048 game
+      </h1>
+    </header>
+    <section id="main">
+      <game-app size="4"></game-app>
+    </section>
+    <footer>
+      <!-- reset button -->
+      &copy; Copyright 2022 - Nobody, not claiming any rights or nothing.
+    </footer>
+  </article>
+  
+  <script src="public/web.js" type="module"></script>
+</body>
+
+</html>

@@ -1,0 +1,28 @@
+{
+  "name": "2048-clone",
+  "version": "0.0.1",
+  "description": "A clone version of 2048 game, built for educational purposes",
+  "main": "server.js",
+  "scripts": {
+    "dev": "esbuild src/web.js --bundle --format=iife --global-name=lib '--define:process.env.NODE_ENV=\"development\"' --outfile=./public/web.js && npm run serve",
+    "start": "npm run dev",
+    "serve": "node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JFKelly68/2048.git"
+  },
+  "author": "James Kelly <mr.james.f.kelly@gmail.com>",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/JFKelly68/2048/issues"
+  },
+  "homepage": "https://github.com/JFKelly68/2048#readme",
+  "dependencies": {
+    "dotenv": "^16.0.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.14.38"
+  }
+}
