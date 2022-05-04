@@ -1,4 +1,4 @@
-import DynamicComponent from './Dynamic';
+import DynamicComponent from './DynamicComponent';
 import { STYLES as AppStyles } from './App';
 export const STYLES = {
   TRANSITION_LENGTH: '300ms',
@@ -10,10 +10,6 @@ export const EVENTS = {
   CLOSE: 'close',
 };
 
-// TODO: refactor to remove <style> from basic template (append it as a separate element?)
-// TODO: add <p> styles or just generally improve the .modal-content styling
-
-// https://developer.mozilla.org/en-US/docs/Web/Web_Components
 export default class CustomModal extends DynamicComponent {
   constructor () {
     super();

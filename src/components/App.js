@@ -1,6 +1,6 @@
 import Board, { EVENTS as BoardEvents } from './Board';
 import CustomModal, { EVENTS as CustomModalEvents, STYLES as ModalStyles } from './CustomModal';
-import DynamicComponent from './Dynamic';
+import DynamicComponent from './DynamicComponent';
 
 export const STYLES = {
   HIDE_CLASS: 'hidden',

@@ -1,5 +1,5 @@
 import { rotateMatrixClockwise, rotateMatrixCounterClockwise, reverseMatrix } from '../utils';
-import DynamicComponent from './Dynamic';
+import DynamicComponent from './DynamicComponent';
 import Cell from './Cell';
 import { EVENTS as AppEvents } from './App';
 

@@ -14,7 +14,7 @@ var lib = (() => {
   var rotateMatrixCounterClockwise = compose(reverse, flipMatrix);
   var reverseMatrix = (matrix) => matrix.map((row) => row.reverse());
 
-  // src/components/Dynamic.js
+  // src/components/DynamicComponent.js
   var DynamicComponent = class extends HTMLElement {
     constructor() {
       super();
@@ -24,6 +24,8 @@ var lib = (() => {
       this.innerHTML = `${styles}${rendered}`;
     }
     static makeTemplateElement(tmpl) {
+      if (!tmpl)
+        throw new Error("No template argument provided");
       const template = document.createElement("template");
       template.innerHTML = tmpl;
       return template;

@@ -1,6 +1,6 @@
-import App from "./components/App";
-import Board from "./components/Board";
-import Cell from "./components/Cell";
+import App from './components/App';
+import Board from './components/Board';
+import Cell from './components/Cell';
 import CustomModal from './components/CustomModal';
 
 window.customElements.define(App.tagName, App);

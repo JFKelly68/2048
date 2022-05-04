@@ -1,4 +1,4 @@
-import DynamicComponent from "./Dynamic";
+import DynamicComponent from "./DynamicComponent";
 
 export default class Cell extends DynamicComponent {
   constructor () {
