@@ -6,6 +6,9 @@ const fs = require('fs');
 const HOST = process.env.SERVER_HOST ?? 'localhost';
 const PORT = process.env.SERVER_PORT ?? 8000;
 
+// REFERENCE
+// https://developer.mozilla.org/en-US/docs/Learn/Server-side/Node_server_without_framework
+
 //these are the only file types we will support for now
 const extensions = {
 	".html" : "text/html",
