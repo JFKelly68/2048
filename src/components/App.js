@@ -50,7 +50,7 @@ export default class App extends DynamicComponent {
           width: 80px;
           height: 40px;
         }
-    
+
         .${ App.actions.swipe }::after {
           content: '^';
           display: flex;
@@ -78,7 +78,7 @@ export default class App extends DynamicComponent {
           opacity: 0;
           z-index: -1;
         }
-      
+
         .${ STYLES.HIDE_CLASS } .${ CustomModal.className }-content {
           transform: translate3d(0, ${ ModalStyles.TRANSLATE_DISTANCE }, 0);
         }
@@ -115,7 +115,7 @@ export default class App extends DynamicComponent {
       </footer>
       <${ CustomModal.tagName } class="${CustomModal.classList.join(' ')} ${ STYLES.HIDE_CLASS }"
         ${ Object.entries(CustomModal.htmlAttributes).reduce((acc, [attr, value]) => `${acc} ${ attr }="${ value }"`, '') }
-        heading="You fucking lost, idiot." 
+        heading="You fucking lost, idiot."
         description="Maybe don't suck so much? ¯\\(ツ)/¯"
       >
         <button type="button" id="${ App.actions.reset }" class="btn ${ App.actions.reset } js-${ App.actions.reset }-btn">Start Over</button>
@@ -132,11 +132,13 @@ export default class App extends DynamicComponent {
     this._onReset = this._onReset.bind(this);
     this._onLose = this._onLose.bind(this);
     this._onEnd = this._onEnd.bind(this);
+    this._onKeyDown = this._onKeyDown.bind(this);
 
     this.swipeBtnEls.forEach(el => el.addEventListener('click', this._onSwipe));
     this.resetEls.forEach(el => el.addEventListener('click', this._onReset));
     this.endEl.addEventListener('click', this._onEnd);
     this.addEventListener(BoardEvents.LOSE, this._onLose);
+    document.addEventListener('keydown', this._onKeyDown);
   }
 
   _onEnd (evt) {
@@ -158,6 +160,21 @@ export default class App extends DynamicComponent {
     // dispatch event
     const swipeEvt = this.constructor.makeEvent(BoardEvents.SWIPE, { detail: { direction } });
     this.boardEl.dispatchEvent(swipeEvt);
+  }
+
+  _onKeyDown (evt) {
+    evt.preventDefault();
+    const directions = {
+      ArrowLeft: 'left',
+      ArrowRight: 'right',
+      ArrowUp: 'up',
+      ArrowDown: 'down',
+    }
+    if (evt.key in directions) {
+      const direction = directions[evt.key]
+      const swipeEvt = this.constructor.makeEvent(BoardEvents.SWIPE, { detail: { direction } });
+      this.boardEl.dispatchEvent(swipeEvt);
+    }
   }
 
   _onReset (evt) {
