@@ -171,8 +171,7 @@ export default class App extends DynamicComponent {
       ArrowDown: 'down',
     }
     if (evt.key in directions) {
-      const direction = directions[evt.key]
-      const swipeEvt = this.constructor.makeEvent(BoardEvents.SWIPE, { detail: { direction } });
+      const swipeEvt = this.constructor.makeEvent(BoardEvents.SWIPE, { detail: { direction: directions[evt.key] } });
       this.boardEl.dispatchEvent(swipeEvt);
     }
   }
